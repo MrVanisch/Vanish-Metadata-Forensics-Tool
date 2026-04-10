@@ -189,12 +189,52 @@ public class ConsoleReportGenerator implements ReportGenerator {
             System.out.println(ConsoleColors.GREEN + "  ✅ No sensitive data detected" + ConsoleColors.RESET);
         }
 
+        // ===== RAW METADATA TABLE =====
+        if (!metadata.getRawMetadata().isEmpty()) {
+            printRawMetadataTable(metadata);
+        }
+
         // ===== FOOTER =====
         System.out.println();
         System.out.println(ConsoleColors.DIM + "  📊 Total metadata fields: " +
                 metadata.getRawMetadata().size() + ConsoleColors.RESET);
         System.out.println(DOUBLE);
         System.out.println();
+    }
+
+    /**
+     * Prints a detailed table of ALL raw metadata fields.
+     */
+    private void printRawMetadataTable(FileMetadata metadata) {
+        printSectionHeader("📐 RAW METADATA TABLE");
+        
+        Map<String, String> raw = metadata.getRawMetadata();
+        if (raw.isEmpty()) return;
+
+        // Header
+        System.out.println(ConsoleColors.CYAN + "  ┌" + "─".repeat(25) + "┬" + "─".repeat(28) + "┐" + ConsoleColors.RESET);
+        System.out.printf("  %s│ %-23s │ %-26s │%s%n", 
+                ConsoleColors.CYAN, ConsoleColors.BOLD + "TAG NAME" + ConsoleColors.RESET + ConsoleColors.CYAN, 
+                ConsoleColors.BOLD + "VALUE" + ConsoleColors.RESET + ConsoleColors.CYAN, ConsoleColors.RESET);
+        System.out.println(ConsoleColors.CYAN + "  ├" + "─".repeat(25) + "┼" + "─".repeat(28) + "┤" + ConsoleColors.RESET);
+
+        // Sort keys for better table readability
+        java.util.TreeMap<String, String> sorted = new java.util.TreeMap<>(raw);
+        
+        for (Map.Entry<String, String> entry : sorted.entrySet()) {
+            String tag = entry.getKey();
+            String val = entry.getValue();
+
+            // Truncate to fit table width
+            String truncatedTag = truncate(tag, 23);
+            String truncatedVal = truncate(val, 26);
+
+            System.out.printf("  %s│%s %-23s %s│%s %-26s %s│%s%n",
+                    ConsoleColors.CYAN, ConsoleColors.RESET, truncatedTag, ConsoleColors.CYAN,
+                    ConsoleColors.WHITE, truncatedVal, ConsoleColors.CYAN, ConsoleColors.RESET);
+        }
+
+        System.out.println(ConsoleColors.CYAN + "  └" + "─".repeat(25) + "┴" + "─".repeat(28) + "┘" + ConsoleColors.RESET);
     }
 
     /**
