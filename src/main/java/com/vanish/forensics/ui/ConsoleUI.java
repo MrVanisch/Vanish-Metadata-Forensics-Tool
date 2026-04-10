@@ -5,8 +5,11 @@ import com.vanish.forensics.analyzer.FileForensicAnalyzer;
 import com.vanish.forensics.analyzer.SensitiveDataDetector;
 import com.vanish.forensics.cleaner.MetadataCleaner;
 import com.vanish.forensics.core.ExtractorFactory;
+import com.vanish.forensics.core.JpegMetadataEditor;
+import com.vanish.forensics.core.MetadataEditor;
 import com.vanish.forensics.core.MetadataExtractor;
 import com.vanish.forensics.model.FileMetadata;
+import com.vanish.forensics.model.GpsCoordinates;
 import com.vanish.forensics.report.ConsoleReportGenerator;
 import com.vanish.forensics.report.HtmlReportGenerator;
 import com.vanish.forensics.report.JsonReportGenerator;
@@ -26,6 +29,7 @@ public class ConsoleUI {
     private final FileForensicAnalyzer forensicAnalyzer;
     private final BatchAnalyzer batchAnalyzer;
     private final MetadataCleaner metadataCleaner;
+    private final MetadataEditor metadataEditor;
     private final ConsoleReportGenerator consoleReport;
 
     private String reportOutputDir = "./vanish_reports";
@@ -37,6 +41,7 @@ public class ConsoleUI {
         this.forensicAnalyzer = new FileForensicAnalyzer();
         this.batchAnalyzer = new BatchAnalyzer();
         this.metadataCleaner = new MetadataCleaner();
+        this.metadataEditor = new JpegMetadataEditor();
         this.consoleReport = new ConsoleReportGenerator();
     }
 
@@ -62,9 +67,12 @@ public class ConsoleUI {
                     cleanMetadata();
                     break;
                 case "4":
-                    showRawMetadata();
+                    editMetadata();
                     break;
                 case "5":
+                    showRawMetadata();
+                    break;
+                case "6":
                     settings();
                     break;
                 case "0":
@@ -109,8 +117,9 @@ public class ConsoleUI {
         System.out.println(ConsoleColors.CYAN + "  │  " + ConsoleColors.GREEN + "[1]" + ConsoleColors.WHITE + " 🔍 Analyze single file              " + ConsoleColors.CYAN + "│" + ConsoleColors.RESET);
         System.out.println(ConsoleColors.CYAN + "  │  " + ConsoleColors.GREEN + "[2]" + ConsoleColors.WHITE + " 📂 Batch analyze directory           " + ConsoleColors.CYAN + "│" + ConsoleColors.RESET);
         System.out.println(ConsoleColors.CYAN + "  │  " + ConsoleColors.GREEN + "[3]" + ConsoleColors.WHITE + " 🧹 Clean metadata from file          " + ConsoleColors.CYAN + "│" + ConsoleColors.RESET);
-        System.out.println(ConsoleColors.CYAN + "  │  " + ConsoleColors.GREEN + "[4]" + ConsoleColors.WHITE + " 🗂️  View raw metadata                " + ConsoleColors.CYAN + "│" + ConsoleColors.RESET);
-        System.out.println(ConsoleColors.CYAN + "  │  " + ConsoleColors.GREEN + "[5]" + ConsoleColors.WHITE + " ⚙️  Settings                          " + ConsoleColors.CYAN + "│" + ConsoleColors.RESET);
+        System.out.println(ConsoleColors.CYAN + "  │  " + ConsoleColors.GREEN + "[4]" + ConsoleColors.WHITE + " ✍️  Edit metadata (PRO)               " + ConsoleColors.CYAN + "│" + ConsoleColors.RESET);
+        System.out.println(ConsoleColors.CYAN + "  │  " + ConsoleColors.GREEN + "[5]" + ConsoleColors.WHITE + " 🗂️  View raw metadata                " + ConsoleColors.CYAN + "│" + ConsoleColors.RESET);
+        System.out.println(ConsoleColors.CYAN + "  │  " + ConsoleColors.GREEN + "[6]" + ConsoleColors.WHITE + " ⚙️  Settings                          " + ConsoleColors.CYAN + "│" + ConsoleColors.RESET);
         System.out.println(ConsoleColors.CYAN + "  │  " + ConsoleColors.RED + "[0]" + ConsoleColors.WHITE + " 🚪 Exit                              " + ConsoleColors.CYAN + "│" + ConsoleColors.RESET);
         System.out.println(ConsoleColors.CYAN + "  └─────────────────────────────────────────┘" + ConsoleColors.RESET);
     }
@@ -237,6 +246,74 @@ public class ConsoleUI {
     }
 
     // ==================== OPTION 3: Clean Metadata ====================
+
+    /**
+     * Interactive metadata editor flow.
+     */
+    private void editMetadata() {
+        System.out.println();
+        System.out.println(ConsoleColors.BOLD + "  ✍️ EDIT METADATA (PRO)" + ConsoleColors.RESET);
+        String path = readInput("Enter image path (JPEG only)");
+        File file = new File(path);
+
+        if (!file.exists() || !file.isFile()) {
+            System.out.println(ConsoleColors.RED + "  Error: File not found." + ConsoleColors.RESET);
+            return;
+        }
+
+        if (!metadataEditor.supports(path.substring(path.lastIndexOf(".") + 1))) {
+            System.out.println(ConsoleColors.RED + "  Error: Currently only JPEG files are supported for editing." + ConsoleColors.RESET);
+            return;
+        }
+
+        Map<String, String> changes = new HashMap<>();
+        boolean editing = true;
+
+        while (editing) {
+            System.out.println();
+            System.out.println(ConsoleColors.CYAN + "  Fields to edit:" + ConsoleColors.RESET);
+            System.out.println("  [1] Artist/Author");
+            System.out.println("  [2] Title/Description");
+            System.out.println("  [3] Copyright");
+            System.out.println("  [4] Software");
+            System.out.println("  [5] Date (YYYY:MM:DD HH:MM:SS)");
+            System.out.println("  [6] GPS Coordinates (Lat, Long)");
+            System.out.println(ConsoleColors.GREEN + "  [S] Save Changes & Exit" + ConsoleColors.RESET);
+            System.out.println(ConsoleColors.RED + "  [C] Cancel" + ConsoleColors.RESET);
+
+            String choice = readInput("Select field to edit").toUpperCase();
+
+            switch (choice) {
+                case "1": changes.put("artist", readInput("Enter Artist name")); break;
+                case "2": changes.put("description", readInput("Enter Description")); break;
+                case "3": changes.put("copyright", readInput("Enter Copyright info")); break;
+                case "4": changes.put("software", readInput("Enter Software name")); break;
+                case "5": changes.put("date", readInput("Enter Date (YYYY:MM:DD HH:MM:SS)")); break;
+                case "6": changes.put("gps", readInput("Enter GPS (e.g. 52.2297, 21.0122)")); break;
+                case "S": editing = false; break;
+                case "C": return;
+            }
+        }
+
+        if (changes.isEmpty()) {
+            System.out.println("  No changes to save.");
+            return;
+        }
+
+        try {
+            String outPath = path.substring(0, path.lastIndexOf(".")) + "_edited.jpg";
+            File outFile = new File(outPath);
+            
+            System.out.println(ConsoleColors.DIM + "  Applying changes..." + ConsoleColors.RESET);
+            metadataEditor.updateMetadata(file, outFile, changes);
+            
+            System.out.println(ConsoleColors.GREEN + "  ✅ Metadata updated successfully!" + ConsoleColors.RESET);
+            System.out.println("  New file saved to: " + outPath);
+        } catch (Exception e) {
+            System.out.println(ConsoleColors.RED + "  Error during editing: " + e.getMessage() + ConsoleColors.RESET);
+            e.printStackTrace();
+        }
+    }
 
     private void cleanMetadata() {
         System.out.println();
