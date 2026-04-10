@@ -60,6 +60,7 @@ public class VanishApp {
         boolean exportJson = false;
         boolean exportHtml = false;
         boolean cleanMode = false;
+        boolean editMode = false;
 
         // Parse arguments
         for (int i = 0; i < args.length; i++) {
@@ -90,6 +91,11 @@ public class VanishApp {
                     cleanMode = true;
                     if (i + 1 < args.length) filePath = args[++i];
                     break;
+                case "--edit":
+                case "-e":
+                    editMode = true;
+                    if (i + 1 < args.length) filePath = args[++i];
+                    break;
                 default:
                     // Treat unknown args as file paths if no flag is set
                     if (filePath == null && !args[i].startsWith("-")) {
@@ -101,6 +107,8 @@ public class VanishApp {
         // Execute based on parsed arguments
         if (cleanMode && filePath != null) {
             cleanFile(filePath);
+        } else if (editMode && filePath != null) {
+            startEditingMode(filePath);
         } else if (filePath != null) {
             analyzeSingleFile(filePath, exportJson, exportHtml);
         } else if (dirPath != null) {
@@ -186,6 +194,14 @@ public class VanishApp {
     }
 
     /**
+     * Starts the interactive editor for a specific file in CLI mode.
+     */
+    private static void startEditingMode(String path) {
+        ConsoleUI ui = new ConsoleUI();
+        ui.directEditInit(path);
+    }
+    
+    /**
      * Cleans metadata from a file in CLI mode.
      */
     private static void cleanFile(String path) {
@@ -226,6 +242,7 @@ public class VanishApp {
         System.out.println("    --json               Export report as JSON");
         System.out.println("    --html               Export report as HTML");
         System.out.println("    --clean <path>       Clean metadata from file (creates backup)");
+        System.out.println("    -e, --edit <path>    Edit metadata of a file (interactive)");
         System.out.println("    -v, --version        Show version");
         System.out.println("    -h, --help           Show this help");
         System.out.println();
@@ -234,6 +251,7 @@ public class VanishApp {
         System.out.println("    java -jar vanish.jar --file document.pdf --json --html");
         System.out.println("    java -jar vanish.jar --dir ./photos --html");
         System.out.println("    java -jar vanish.jar --clean secret_photo.jpg");
+        System.out.println("    java -jar vanish.jar --edit photo.jpg");
         System.out.println();
     }
 

@@ -248,16 +248,26 @@ public class ConsoleUI {
     // ==================== OPTION 3: Clean Metadata ====================
 
     /**
+     * Entry point for direct editing mode from CLI.
+     */
+    public void directEditInit(String path) {
+        performEdit(path);
+    }
+
+    /**
      * Interactive metadata editor flow.
      */
     private void editMetadata() {
         System.out.println();
         System.out.println(ConsoleColors.BOLD + "  ✍️ EDIT METADATA (PRO)" + ConsoleColors.RESET);
         String path = readInput("Enter image path (JPEG only)");
-        File file = new File(path);
+        performEdit(path);
+    }
 
+    private void performEdit(String path) {
+        File file = new File(path.trim().replace("\"", ""));
         if (!file.exists() || !file.isFile()) {
-            System.out.println(ConsoleColors.RED + "  Error: File not found." + ConsoleColors.RESET);
+            System.out.println(ConsoleColors.RED + "  Error: File not found: " + path + ConsoleColors.RESET);
             return;
         }
 

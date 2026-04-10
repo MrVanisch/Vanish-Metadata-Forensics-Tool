@@ -57,6 +57,9 @@ java -jar target/vanish-forensics-1.0.0.jar --file evidence.mp4 --html
 
 # Clean metadata
 java -jar target/vanish-forensics-1.0.0.jar --clean secret.jpg
+
+# Edit metadata (interactively for a specific file)
+java -jar target/vanish-forensics-1.0.0.jar --edit photo.jpg
 ```
 
 ## ✍️ How to Edit Metadata (Step-by-Step)
