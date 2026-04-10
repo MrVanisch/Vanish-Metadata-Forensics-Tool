@@ -50,6 +50,9 @@ java -jar target/vanish-forensics-1.0.0.jar
 # Analyze a single file with HTML report
 java -jar target/vanish-forensics-1.0.0.jar --file photo.jpg --html
 
+# Forensic video/audio analysis
+java -jar target/vanish-forensics-1.0.0.jar --file evidence.mp4 --html
+
 # Batch analyze a directory with all exports
 java -jar target/vanish-forensics-1.0.0.jar --dir ./evidence --json --html
 
