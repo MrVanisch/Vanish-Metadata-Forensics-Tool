@@ -24,6 +24,13 @@ public class DocumentData {
     private int wordCount;
     private int characterCount;
 
+    // Forensic / PDF Specific
+    private String pdfVersion;
+    private boolean isEncrypted;
+    private java.util.List<String> permissions = new java.util.ArrayList<>();
+    private boolean hasAcroForm;
+    private boolean hasAttachments;
+
     // --- Getters and Setters ---
 
     public String getAuthor() { return author; }
@@ -79,4 +86,20 @@ public class DocumentData {
 
     public int getCharacterCount() { return characterCount; }
     public void setCharacterCount(int characterCount) { this.characterCount = characterCount; }
+
+    public String getPdfVersion() { return pdfVersion; }
+    public void setPdfVersion(String pdfVersion) { this.pdfVersion = pdfVersion; }
+
+    public boolean isEncrypted() { return isEncrypted; }
+    public void setEncrypted(boolean encrypted) { isEncrypted = encrypted; }
+
+    public java.util.List<String> getPermissions() { return permissions; }
+    public void setPermissions(java.util.List<String> permissions) { this.permissions = permissions; }
+    public void addPermission(String permission) { this.permissions.add(permission); }
+
+    public boolean isHasAcroForm() { return hasAcroForm; }
+    public void setHasAcroForm(boolean hasAcroForm) { this.hasAcroForm = hasAcroForm; }
+
+    public boolean isHasAttachments() { return hasAttachments; }
+    public void setHasAttachments(boolean hasAttachments) { this.hasAttachments = hasAttachments; }
 }

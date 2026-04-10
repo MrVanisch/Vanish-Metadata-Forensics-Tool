@@ -132,6 +132,26 @@ public class DocumentMetadataExtractor implements MetadataExtractor {
             try { docData.setCharacterCount(Integer.parseInt(charCount.trim())); } catch (NumberFormatException ignored) {}
         }
 
+        // --- Advanced PDF Forensics ---
+        docData.setPdfVersion(getMetaValue(tikaMetadata, "pdf:PDFVersion", "pdfa:PDFVersion"));
+        
+        String encrypted = tikaMetadata.get("pdf:encrypted");
+        docData.setEncrypted("true".equalsIgnoreCase(encrypted));
+
+        docData.setHasAcroForm("true".equalsIgnoreCase(tikaMetadata.get("pdf:hasAcroFormFields")));
+        docData.setHasAttachments("true".equalsIgnoreCase(tikaMetadata.get("pdf:hasCollection")));
+
+        // Permissions mapping
+        String[] permissionKeys = {
+            "access_permission:can_print", "access_permission:can_modify", 
+            "access_permission:extract_content", "access_permission:assemble_document"
+        };
+        for (String pKey : permissionKeys) {
+            if ("false".equalsIgnoreCase(tikaMetadata.get(pKey))) {
+                docData.addPermission("RESTRICTED: " + pKey.replace("access_permission:", ""));
+            }
+        }
+
         return docData;
     }
 

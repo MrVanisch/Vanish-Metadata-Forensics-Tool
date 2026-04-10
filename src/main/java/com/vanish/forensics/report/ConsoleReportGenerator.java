@@ -120,36 +120,52 @@ public class ConsoleReportGenerator implements ReportGenerator {
             }
         }
 
-        // ===== DOCUMENT — only important fields =====
+        // ===== DOCUMENT (PDF, Office, etc.) =====
         if (metadata.hasDocumentData()) {
             DocumentData doc = metadata.getDocumentData();
-            boolean hasContent = doc.getAuthor() != null || doc.getTitle() != null ||
-                    doc.getCompany() != null || doc.getCreator() != null;
+            printSectionHeader("📄 DOCUMENT");
+            
+            printKV("Title", doc.getTitle());
+            printKV("Author", highlightSensitive(doc.getAuthor()));
+            printKV("Last Author", highlightSensitive(doc.getLastAuthor()));
+            printKV("Company", highlightSensitive(doc.getCompany()));
+            printKV("Creator App", doc.getCreator());
+            printKV("Producer", doc.getProducer());
+            printKV("Created", doc.getCreationDate());
+            printKV("Modified", doc.getModificationDate());
+            
+            // Forensic / Technical Details
+            if (doc.getPdfVersion() != null) {
+                printKV("PDF Version", doc.getPdfVersion());
+            }
+            
+            StringBuilder stats = new StringBuilder();
+            if (doc.getPageCount() > 0) stats.append(doc.getPageCount()).append(" pages");
+            if (doc.getWordCount() > 0) {
+                if (stats.length() > 0) stats.append(" • ");
+                stats.append(doc.getWordCount()).append(" words");
+            }
+            if (doc.getRevision() != null) {
+                if (stats.length() > 0) stats.append(" • ");
+                stats.append("Revision ").append(doc.getRevision());
+            }
+            if (stats.length() > 0) printKV("Stats", stats.toString());
 
-            if (hasContent) {
-                printSectionHeader("📄 DOCUMENT");
-                printKV("Title", doc.getTitle());
-                printKV("Author", highlightSensitive(doc.getAuthor()));
-                printKV("Last Author", highlightSensitive(doc.getLastAuthor()));
-                printKV("Company", highlightSensitive(doc.getCompany()));
-                printKV("Manager", highlightSensitive(doc.getManager()));
-                printKV("Created", doc.getCreationDate());
-                printKV("Modified", doc.getModificationDate());
-                printKV("Creator App", doc.getCreator());
-                printKV("Producer", doc.getProducer());
+            if (doc.isEncrypted()) {
+                System.out.println(ConsoleColors.RED + "  [!] DOCUMENT IS ENCRYPTED / PASSWORD PROTECTED" + ConsoleColors.RESET);
+            }
+            if (doc.isHasAcroForm()) {
+                printKV("Features", "Contains Forms (AcroForms)");
+            }
+            if (doc.isHasAttachments()) {
+                System.out.println(ConsoleColors.YELLOW + "  [i] Contains Embedded Attachments (Possible Stego)" + ConsoleColors.RESET);
+            }
 
-                // Compact stats line
-                StringBuilder stats = new StringBuilder();
-                if (doc.getPageCount() > 0) stats.append(doc.getPageCount()).append(" pages");
-                if (doc.getWordCount() > 0) {
-                    if (stats.length() > 0) stats.append(" • ");
-                    stats.append(doc.getWordCount()).append(" words");
+            if (!doc.getPermissions().isEmpty()) {
+                System.out.println(ConsoleColors.YELLOW + "  Access Restrictions:" + ConsoleColors.RESET);
+                for (String perm : doc.getPermissions()) {
+                    System.out.println("    - " + perm);
                 }
-                if (doc.getRevision() != null) {
-                    if (stats.length() > 0) stats.append(" • ");
-                    stats.append("Rev ").append(doc.getRevision());
-                }
-                if (stats.length() > 0) printKV("Stats", stats.toString());
             }
         }
 
