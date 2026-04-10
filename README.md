@@ -8,6 +8,7 @@ Vanish is a powerful Java-based security utility designed to uncover hidden info
 
 ### 1. 🔍 Comprehensive Extraction
 - **Images:** Full EXIF, IPTC, and XMP extraction (GPS, Camera Serial, Software, History).
+- **Multimedia:** Forensic analysis of **Video (MP4, MOV, AVI)** and **Audio (MP3, WAV, FLAC)** — including duration, resolution, codecs, and GPS location in videos.
 - **Documents:** Metadata from PDF, DOCX, XLSX, PPTX, and more using **Apache Tika**.
 - **Forensics:** Cryptographic hashes (MD5, SHA-1, SHA-256) and Shannon entropy analysis.
 
