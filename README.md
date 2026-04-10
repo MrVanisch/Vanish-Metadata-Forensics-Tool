@@ -20,8 +20,9 @@ Vanish is a powerful Java-based security utility designed to uncover hidden info
 
 ### 3. 🧹 Metadata Cleaning & Editing
 - **Metadata Cleaning:** Securely remove metadata from images (JPEG, PNG, etc.) via re-encoding.
-- **Metadata Editing (PRO):** Interactively modify EXIF tags including **Artist, Description, Copyright, Software, Date, and GPS coordinates** in JPEG files.
-- **Safety:** Always creates a new `_edited.jpg` file to preserve original evidence.
+- **Metadata Editing (PRO):** Interactively modify EXIF/Text tags including **Artist, Description, Copyright, Software, Date, and GPS coordinates** in both **JPEG and PNG** files.
+- **Safety:** Always creates a new `_edited.jpg` or `_edited.png` file to preserve original evidence.
+- **Backup creation** for original files during cleaning.
 
 ### 4. 📊 Professional Reporting
 - **Console:** Interactive, color-coded dashboard with risk alerts and forensic mapping.

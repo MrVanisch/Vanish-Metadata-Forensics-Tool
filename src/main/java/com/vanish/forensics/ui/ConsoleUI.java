@@ -7,6 +7,7 @@ import com.vanish.forensics.cleaner.MetadataCleaner;
 import com.vanish.forensics.core.ExtractorFactory;
 import com.vanish.forensics.core.JpegMetadataEditor;
 import com.vanish.forensics.core.MetadataEditor;
+import com.vanish.forensics.core.MetadataEditorFactory;
 import com.vanish.forensics.core.MetadataExtractor;
 import com.vanish.forensics.model.FileMetadata;
 import com.vanish.forensics.model.GpsCoordinates;
@@ -41,7 +42,7 @@ public class ConsoleUI {
         this.forensicAnalyzer = new FileForensicAnalyzer();
         this.batchAnalyzer = new BatchAnalyzer();
         this.metadataCleaner = new MetadataCleaner();
-        this.metadataEditor = new JpegMetadataEditor();
+        this.metadataEditor = null; // Will be selected via factory
         this.consoleReport = new ConsoleReportGenerator();
     }
 
@@ -271,8 +272,10 @@ public class ConsoleUI {
             return;
         }
 
-        if (!metadataEditor.supports(path.substring(path.lastIndexOf(".") + 1))) {
-            System.out.println(ConsoleColors.RED + "  Error: Currently only JPEG files are supported for editing." + ConsoleColors.RESET);
+        MetadataEditor editor = MetadataEditorFactory.getEditor(file);
+        if (editor == null) {
+            System.out.println(ConsoleColors.RED + "  Error: Format not supported for editing." + ConsoleColors.RESET);
+            System.out.println(ConsoleColors.DIM + "  Currently supported: " + MetadataEditorFactory.getSupportedExtensions() + ConsoleColors.RESET);
             return;
         }
 
@@ -311,11 +314,12 @@ public class ConsoleUI {
         }
 
         try {
-            String outPath = path.substring(0, path.lastIndexOf(".")) + "_edited.jpg";
+            String ext = path.substring(path.lastIndexOf("."));
+            String outPath = path.substring(0, path.lastIndexOf(".")) + "_edited" + ext;
             File outFile = new File(outPath);
             
             System.out.println(ConsoleColors.DIM + "  Applying changes..." + ConsoleColors.RESET);
-            metadataEditor.updateMetadata(file, outFile, changes);
+            editor.updateMetadata(file, outFile, changes);
             
             System.out.println(ConsoleColors.GREEN + "  ✅ Metadata updated successfully!" + ConsoleColors.RESET);
             System.out.println("  New file saved to: " + outPath);
