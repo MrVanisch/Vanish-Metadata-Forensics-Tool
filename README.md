@@ -17,9 +17,11 @@ Vanish is a powerful Java-based security utility designed to uncover hidden info
 - **Sensitive Data Detection:** Identification of GPS, names, emails, serial numbers, and software trails.
 - **Magic Byte Verification:** Detects if a file is disguised with a fake extension.
 
-### 3. 🧹 Metadata Cleaning
-- Securely remove metadata from images (JPEG, PNG, etc.) via re-encoding.
-- Backup creation for original files.
+### 3. 🧹 Metadata Cleaning & Editing
+- **Metadata Cleaning:** Securely remove metadata from images (JPEG, PNG, etc.) via re-encoding.
+- **Metadata Editing (PRO):** Interactively modify EXIF tags including **Artist, Description, Copyright, Software, Date, and GPS coordinates** in JPEG files.
+- **Safety:** Always creates a new `_edited.jpg` file to preserve original evidence.
+- **Backup creation** for original files during cleaning.
 
 ### 4. 📊 Professional Reporting
 - **Console:** Interactive, color-coded dashboard with risk alerts.
@@ -58,12 +60,15 @@ java -jar target/vanish-forensics-1.0.0.jar --dir ./evidence --json --html
 
 # Clean metadata
 java -jar target/vanish-forensics-1.0.0.jar --clean secret.jpg
+
+# Note: Editing is currently supported via the Interactive Menu [Option 4]
 ```
 
 ## 🛠️ Technology Stack
 - **Core:** Java 17+
 - **Image Extraction:** `metadata-extractor` (v2.19.0)
 - **Document Analysis:** `Apache Tika` (v2.9.1)
+- **Metadata Editing:** `Apache Commons Imaging` (v1.0-alpha3)
 - **JSON Engine:** `Gson` (v2.11.0)
 - **Build System:** Maven
 
