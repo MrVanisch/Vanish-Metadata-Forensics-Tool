@@ -156,6 +156,40 @@ public class HtmlReportGenerator implements ReportGenerator {
             html.append("</div>\n");
         }
 
+        // Media data card
+        if (metadata.hasMediaData()) {
+            MediaData media = metadata.getMediaData();
+            html.append("<div class='card'>\n");
+            html.append("  <h2>🎬 Media Information</h2>\n");
+            html.append("  <table>\n");
+            addRow(html, "Title", media.getTitle());
+            addRow(html, "Artist", media.getArtist());
+            addRow(html, "Album", media.getAlbum());
+            addRow(html, "Date", media.getDate());
+            addRow(html, "Duration", media.getDuration());
+            addRow(html, "Resolution", media.getResolution());
+            if (media.getFrameRate() != null) addRow(html, "Frame Rate", media.getFrameRate() + " fps");
+            addRow(html, "Video Codec", media.getVideoCodec());
+            addRow(html, "Audio Codec", media.getAudioCodec());
+            addRow(html, "Bitrate", media.getBitrate());
+            addRow(html, "Sample Rate", media.getSampleRate());
+            addRow(html, "Channels", media.getChannels());
+            addRow(html, "Software", media.getSoftware());
+            html.append("  </table>\n");
+
+            if (media.hasGps()) {
+                GpsCoordinates gps = media.getGpsCoordinates();
+                html.append("  <div class='gps-alert'>\n");
+                html.append("    <h3>🌍 Video Location Found</h3>\n");
+                html.append("    <p><strong>Coordinates:</strong> ").append(gps.toString()).append("</p>\n");
+                html.append("    <div class='map-links'>\n");
+                html.append("      <a href='").append(gps.toGoogleMapsUrl()).append("' target='_blank' class='btn'>📍 View on Map</a>\n");
+                html.append("    </div>\n");
+                html.append("  </div>\n");
+            }
+            html.append("</div>\n");
+        }
+
         // Alerts card
         if (metadata.hasAlerts()) {
             html.append("<div class='card'>\n");

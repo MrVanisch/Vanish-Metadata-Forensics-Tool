@@ -21,6 +21,7 @@ public class FileMetadata {
     // Type-specific metadata
     private ExifData exifData;
     private DocumentData documentData;
+    private MediaData mediaData;
 
     // Forensic analysis data
     private ForensicData forensicData;
@@ -73,11 +74,15 @@ public class FileMetadata {
 
     public boolean hasExifData() { return exifData != null; }
     public boolean hasDocumentData() { return documentData != null; }
+    public boolean hasMediaData() { return mediaData != null; }
     public boolean hasAlerts() { return !alerts.isEmpty(); }
     public boolean hasForensicData() { return forensicData != null; }
 
     public ForensicData getForensicData() { return forensicData; }
     public void setForensicData(ForensicData forensicData) { this.forensicData = forensicData; }
+
+    public MediaData getMediaData() { return mediaData; }
+    public void setMediaData(MediaData mediaData) { this.mediaData = mediaData; }
 
     /**
      * Returns a human-readable file size string.

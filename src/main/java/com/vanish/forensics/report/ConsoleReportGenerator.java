@@ -153,6 +153,42 @@ public class ConsoleReportGenerator implements ReportGenerator {
             }
         }
 
+        // ===== MEDIA (Audio/Video) =====
+        if (metadata.hasMediaData()) {
+            MediaData media = metadata.getMediaData();
+            printSectionHeader("📊 MEDIA");
+            printKV("Title", media.getTitle());
+            printKV("Artist", highlightSensitive(media.getArtist()));
+            printKV("Album", media.getAlbum());
+            printKV("Date", media.getDate());
+            printKV("Duration", media.getDuration());
+            
+            if (media.getWidth() > 0) {
+                printKV("Resolution", media.getResolution());
+                if (media.getFrameRate() != null) {
+                    printKV("Frame Rate", String.format("%.2f fps", media.getFrameRate()));
+                }
+                printKV("Video Codec", media.getVideoCodec());
+            }
+            
+            printKV("Audio Codec", media.getAudioCodec());
+            printKV("Bitrate", media.getBitrate());
+            printKV("Software", media.getSoftware());
+
+            if (media.hasGps()) {
+                GpsCoordinates gps = media.getGpsCoordinates();
+                System.out.println();
+                System.out.println(ConsoleColors.RED + "  ┌──────────────────────────────────────────────────┐" + ConsoleColors.RESET);
+                System.out.println(ConsoleColors.RED + "  │  🔴 VIDEO GPS LOCATION DETECTED                  │" + ConsoleColors.RESET);
+                System.out.println(ConsoleColors.RED + "  ├──────────────────────────────────────────────────┤" + ConsoleColors.RESET);
+                System.out.println(ConsoleColors.RED + "  │  " + ConsoleColors.BOLD + ConsoleColors.WHITE +
+                        String.format("%-48s", gps.toDMSString()) + ConsoleColors.RED + "  │" + ConsoleColors.RESET);
+                System.out.println(ConsoleColors.RED + "  │  " + ConsoleColors.CYAN +
+                        String.format("%-48s", gps.toGoogleMapsUrl()) + ConsoleColors.RED + "  │" + ConsoleColors.RESET);
+                System.out.println(ConsoleColors.RED + "  └──────────────────────────────────────────────────┘" + ConsoleColors.RESET);
+            }
+        }
+
         // ===== ALERTS SUMMARY =====
         if (metadata.hasAlerts()) {
             printSectionHeader("⚠️  ALERTS (" + metadata.getAlerts().size() + ")");

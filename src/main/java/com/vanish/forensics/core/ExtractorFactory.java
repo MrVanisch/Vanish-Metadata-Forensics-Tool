@@ -14,6 +14,7 @@ public class ExtractorFactory {
     private final Tika tika = new Tika();
     private final ImageMetadataExtractor imageExtractor = new ImageMetadataExtractor();
     private final DocumentMetadataExtractor documentExtractor = new DocumentMetadataExtractor();
+    private final MediaMetadataExtractor mediaExtractor = new MediaMetadataExtractor();
 
     /**
      * Returns the appropriate MetadataExtractor for the given file.
@@ -32,6 +33,10 @@ public class ExtractorFactory {
 
         if (documentExtractor.supports(mimeType)) {
             return documentExtractor;
+        }
+
+        if (mimeType.startsWith("video/") || mimeType.startsWith("audio/")) {
+            return mediaExtractor;
         }
 
         // Fallback: use document extractor (Tika handles many formats)
@@ -57,6 +62,8 @@ public class ExtractorFactory {
         String mimeType = detectMimeType(file);
 
         if (mimeType.startsWith("image/")) return "Image (" + mimeType + ")";
+        if (mimeType.startsWith("video/")) return "Video (" + mimeType + ")";
+        if (mimeType.startsWith("audio/")) return "Audio (" + mimeType + ")";
         if (mimeType.contains("pdf")) return "PDF Document";
         if (mimeType.contains("word") || mimeType.contains("document")) return "Word Document";
         if (mimeType.contains("excel") || mimeType.contains("spreadsheet")) return "Spreadsheet";
