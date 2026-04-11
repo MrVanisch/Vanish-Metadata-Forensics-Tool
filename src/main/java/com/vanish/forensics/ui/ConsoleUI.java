@@ -466,32 +466,46 @@ public class ConsoleUI {
      * Read-only fields are marked with a lock icon.
      */
     private void displayMetadataTable(List<String> keys, Map<String, String> metadata, Set<String> readOnlyKeys) {
+        int maxKeyLen = 34;
+        int maxValLen = 36;
+        for (String key : keys) {
+            String val = metadata.get(key);
+            if (key.length() > maxKeyLen) maxKeyLen = key.length();
+            if (val != null && val.length() > maxValLen) maxValLen = val.length();
+        }
+        
+        // Prevent extremely long values from breaking the terminal entirely
+        maxKeyLen = Math.min(maxKeyLen, 70);
+        maxValLen = Math.min(maxValLen, 150);
+
+        String dashKey = "─".repeat(maxKeyLen + 4);
+        String dashVal = "─".repeat(maxValLen + 2);
+        
         System.out.println();
-        System.out.println(ConsoleColors.BOLD + "  ┌─────┬──────────────────────────────────────┬──────────────────────────────────────┐" + ConsoleColors.RESET);
-        System.out.println(ConsoleColors.BOLD + "  │  #  │ Field                                │ Value                                │" + ConsoleColors.RESET);
-        System.out.println(ConsoleColors.BOLD + "  ├─────┼──────────────────────────────────────┼──────────────────────────────────────┤" + ConsoleColors.RESET);
+        System.out.println(ConsoleColors.BOLD + "  ┌─────┬" + dashKey + "┬" + dashVal + "┐" + ConsoleColors.RESET);
+        System.out.printf(ConsoleColors.BOLD + "  │  #  │ %-" + (maxKeyLen + 2) + "s │ %-" + maxValLen + "s │%n" + ConsoleColors.RESET, "Field", "Value");
+        System.out.println(ConsoleColors.BOLD + "  ├─────┼" + dashKey + "┼" + dashVal + "┤" + ConsoleColors.RESET);
         
         for (int i = 0; i < keys.size(); i++) {
             String key = keys.get(i);
             String value = metadata.get(key);
             boolean isReadOnly = readOnlyKeys.contains(key);
             
-            // Truncate for display
-            String displayKey = key.length() > 34 ? key.substring(0, 31) + "..." : key;
-            String displayVal = value.length() > 36 ? value.substring(0, 33) + "..." : value;
+            String displayKey = key.length() > maxKeyLen ? key.substring(0, maxKeyLen - 3) + "..." : key;
+            String displayVal = value.length() > maxValLen ? value.substring(0, maxValLen - 3) + "..." : value;
             
-            // Add lock icon for read-only fields
             String prefix = isReadOnly ? "🔒" : "  ";
             String keyColor = isReadOnly ? ConsoleColors.DIM : "";
             String keyReset = isReadOnly ? ConsoleColors.RESET : "";
             
-            System.out.printf("  │ %s%-3d%s │ %s%s%-34s%s │ %-36s │%n",
+            // Format string width accounts for prefix length (emoji takes up 2 chars in length)
+            System.out.printf("  │ %s%-3d%s │ %s%s%-" + maxKeyLen + "s%s │ %-" + maxValLen + "s │%n",
                 ConsoleColors.GREEN, (i + 1), ConsoleColors.RESET,
                 prefix, keyColor, displayKey, keyReset,
                 displayVal);
         }
         
-        System.out.println(ConsoleColors.BOLD + "  └─────┴──────────────────────────────────────┴──────────────────────────────────────┘" + ConsoleColors.RESET);
+        System.out.println(ConsoleColors.BOLD + "  └─────┴" + dashKey + "┴" + dashVal + "┘" + ConsoleColors.RESET);
         System.out.println(ConsoleColors.DIM + "  Total: " + keys.size() + " fields (🔒 = read-only structural data, cannot be edited)" + ConsoleColors.RESET);
         System.out.println(ConsoleColors.DIM + "  Tip: Use [A] to add new writable fields like Author, Title, Copyright, Comment" + ConsoleColors.RESET);
     }

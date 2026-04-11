@@ -263,12 +263,27 @@ public class ConsoleReportGenerator implements ReportGenerator {
         Map<String, String> raw = metadata.getRawMetadata();
         if (raw.isEmpty()) return;
 
+        int maxKeyLen = 8; // MIN length for "TAG NAME"
+        int maxValLen = 5; // MIN length for "VALUE"
+        
+        for (Map.Entry<String, String> entry : raw.entrySet()) {
+            if (entry.getKey().length() > maxKeyLen) maxKeyLen = entry.getKey().length();
+            if (entry.getValue() != null && entry.getValue().length() > maxValLen) maxValLen = entry.getValue().length();
+        }
+        
+        // Prevent extremely long values from breaking the terminal
+        maxKeyLen = Math.min(maxKeyLen, 70);
+        maxValLen = Math.min(maxValLen, 150);
+
+        String dashKey = "─".repeat(maxKeyLen + 2);
+        String dashVal = "─".repeat(maxValLen + 2);
+
         // Header
-        System.out.println(ConsoleColors.CYAN + "  ┌" + "─".repeat(25) + "┬" + "─".repeat(28) + "┐" + ConsoleColors.RESET);
-        System.out.printf("  %s│ %-23s │ %-26s │%s%n", 
+        System.out.println(ConsoleColors.CYAN + "  ┌" + dashKey + "┬" + dashVal + "┐" + ConsoleColors.RESET);
+        System.out.printf("  %s│ %-" + maxKeyLen + "s │ %-" + maxValLen + "s │%s%n", 
                 ConsoleColors.CYAN, ConsoleColors.BOLD + "TAG NAME" + ConsoleColors.RESET + ConsoleColors.CYAN, 
                 ConsoleColors.BOLD + "VALUE" + ConsoleColors.RESET + ConsoleColors.CYAN, ConsoleColors.RESET);
-        System.out.println(ConsoleColors.CYAN + "  ├" + "─".repeat(25) + "┼" + "─".repeat(28) + "┤" + ConsoleColors.RESET);
+        System.out.println(ConsoleColors.CYAN + "  ├" + dashKey + "┼" + dashVal + "┤" + ConsoleColors.RESET);
 
         // Sort keys for better table readability
         java.util.TreeMap<String, String> sorted = new java.util.TreeMap<>(raw);
@@ -277,16 +292,17 @@ public class ConsoleReportGenerator implements ReportGenerator {
             String tag = entry.getKey();
             String val = entry.getValue();
 
-            // Truncate to fit table width
-            String truncatedTag = truncate(tag, 23);
-            String truncatedVal = truncate(val, 26);
+            // Truncate only if it exceeds our dynamic max caps
+            String displayTag = tag.length() > maxKeyLen ? tag.substring(0, maxKeyLen - 3) + "..." : tag;
+            String displayVal = val != null && val.length() > maxValLen ? val.substring(0, maxValLen - 3) + "..." : (val == null ? "" : val);
 
-            System.out.printf("  %s│%s %-23s %s│%s %-26s %s│%s%n",
-                    ConsoleColors.CYAN, ConsoleColors.RESET, truncatedTag, ConsoleColors.CYAN,
-                    ConsoleColors.WHITE, truncatedVal, ConsoleColors.CYAN, ConsoleColors.RESET);
+            // Need to remove ANSI colors from the measurement for String.format, but tag and val have no colors here.
+            System.out.printf("  %s│%s %-" + maxKeyLen + "s %s│%s %-" + maxValLen + "s %s│%s%n",
+                    ConsoleColors.CYAN, ConsoleColors.RESET, displayTag, ConsoleColors.CYAN,
+                    ConsoleColors.WHITE, displayVal, ConsoleColors.CYAN, ConsoleColors.RESET);
         }
 
-        System.out.println(ConsoleColors.CYAN + "  └" + "─".repeat(25) + "┴" + "─".repeat(28) + "┘" + ConsoleColors.RESET);
+        System.out.println(ConsoleColors.CYAN + "  └" + dashKey + "┴" + dashVal + "┘" + ConsoleColors.RESET);
     }
 
     /**
