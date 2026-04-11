@@ -405,17 +405,37 @@ public class ConsoleUI {
                 System.out.println(ConsoleColors.DIM + "  Verifying changes in output file..." + ConsoleColors.RESET);
                 try {
                     Map<String, String> newMetadata = universalEditor.readAllMetadata(file);
+                    
+                    // Fallback to metadata-extractor for things Tika might hide (like custom PNG chunks)
+                    Map<String, String> rawFallback = new HashMap<>();
+                    try {
+                        MetadataExtractor extractor = extractorFactory.getExtractor(file);
+                        FileMetadata fileMeta = extractor.extract(file);
+                        rawFallback = fileMeta.getRawMetadata();
+                    } catch (Exception ignored) {}
+
                     int verified = 0;
                     int notFound = 0;
                     for (Map.Entry<String, String> change : changes.entrySet()) {
-                        // Search for the value in the new metadata
+                        String targetValue = change.getValue();
                         boolean found = false;
+                        
                         for (String val : newMetadata.values()) {
-                            if (val.contains(change.getValue())) {
+                            if (val.contains(targetValue)) {
                                 found = true;
                                 break;
                             }
                         }
+                        
+                        if (!found) {
+                            for (String val : rawFallback.values()) {
+                                if (val != null && val.contains(targetValue)) {
+                                    found = true;
+                                    break;
+                                }
+                            }
+                        }
+                        
                         if (found) {
                             verified++;
                         } else {
@@ -426,7 +446,7 @@ public class ConsoleUI {
                         System.out.println(ConsoleColors.GREEN + "  ✓ Verified: " + verified + " change(s) confirmed in the output file." + ConsoleColors.RESET);
                     }
                     if (notFound > 0) {
-                        System.out.println(ConsoleColors.YELLOW + "  ⚠ " + notFound + " change(s) could not be verified (structural fields are read-only)." + ConsoleColors.RESET);
+                        System.out.println(ConsoleColors.YELLOW + "  ⚠ " + notFound + " change(s) could not be verified (structural/unsupported field)." + ConsoleColors.RESET);
                     }
                 } catch (Exception ve) {
                     System.out.println(ConsoleColors.DIM + "  (Verification skipped)" + ConsoleColors.RESET);

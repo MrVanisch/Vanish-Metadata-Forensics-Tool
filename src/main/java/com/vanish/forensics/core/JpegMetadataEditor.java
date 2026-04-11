@@ -63,6 +63,17 @@ public class JpegMetadataEditor implements MetadataEditor {
                     // Format expected: "latitude, longitude" e.g. "52.2297, 21.0122"
                     updateGps(outputSet, value);
                     break;
+                default:
+                    // If the user adds a custom field or edits an unmapped field, inject it into the XPComment or append to UserComment
+                    // In Apache Commons Imaging, TIFF_TAG_SOFTWARE or EXIF_TAG_USER_COMMENT are good fallbacks.
+                    // We'll append it to UserComment to avoid data loss.
+                    try {
+                        exifDir.removeField(ExifTagConstants.EXIF_TAG_USER_COMMENT);
+                        exifDir.add(ExifTagConstants.EXIF_TAG_USER_COMMENT, tag + "=" + value);
+                    } catch (Exception e) {
+                        System.out.println("  [JpegEditor] Note: Could not map custom field '" + tag + "' perfectly to EXIF.");
+                    }
+                    break;
             }
         }
 
