@@ -36,6 +36,32 @@ public class UniversalMetadataEditor {
                 result.put(name, value);
             }
         }
+        
+        // Scan for Vanish Stealth Payload at the end of the file
+        try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
+            long length = raf.length();
+            if (length > 20) {
+                long start = Math.max(0, length - 10240);
+                raf.seek(start);
+                byte[] bytes = new byte[(int) (length - start)];
+                raf.readFully(bytes);
+                String tail = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+                int markerIdx = tail.lastIndexOf("VANISH_META:");
+                if (markerIdx != -1) {
+                    String json = tail.substring(markerIdx + 12).trim();
+                    if (json.endsWith("}")) {
+                        try {
+                            Map<String, String> stealthMap = new com.google.gson.Gson().fromJson(
+                                json, new com.google.gson.reflect.TypeToken<Map<String, String>>(){}.getType());
+                            if (stealthMap != null) {
+                                result.putAll(stealthMap); // overwrite Tika values with forced changes
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+        
         return result;
     }
 
@@ -66,7 +92,7 @@ public class UniversalMetadataEditor {
                 applyPngChanges(source, destination, changes);
                 break;
             default:
-                // Generic: copy file and append metadata as custom block
+                // Generic: copy file and append metadata as custom payload block
                 applyGenericChanges(source, destination, changes, ext);
                 break;
         }
@@ -121,14 +147,14 @@ public class UniversalMetadataEditor {
      * Strategy: For non-image files we use Apache Tika's metadata rewriting
      * capability or, as a fallback, create a sidecar metadata file.
      *
-     * For many binary formats, direct in-place metadata editing is not possible
-     * without format-specific logic. Instead, we:
+     * For many binary formats (MP4, PDF, DOCX), direct in-place metadata editing is not possible
+     * without heavy format-specific libraries. Instead, we:
      *   1. Copy the original file to the destination
-     *   2. Create a sidecar JSON file with the modified metadata
-     *   3. For certain formats, attempt in-place modification
+     *   2. Append a stealth JSON payload to the end of the binary (forensic manipulation)
+     *   3. Create an explicit sidecar JSON file for external transparency
      */
     private void applyGenericChanges(File source, File destination, Map<String, String> changes, String ext) throws Exception {
-        // Step 1: Copy original file to destination
+        // Step 1: Copy original file to destination and inject stealth payload
         try (InputStream in = new FileInputStream(source);
              OutputStream out = new FileOutputStream(destination)) {
             byte[] buffer = new byte[8192];
@@ -136,9 +162,14 @@ public class UniversalMetadataEditor {
             while ((len = in.read(buffer)) != -1) {
                 out.write(buffer, 0, len);
             }
+            
+            // Forensic Steganography: Append modified data to the tail of the binary
+            String jsonPayload = new com.google.gson.Gson().toJson(changes);
+            String marker = "\nVANISH_META:" + jsonPayload;
+            out.write(marker.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         }
 
-        // Step 2: Create a sidecar metadata file with the changes
+        // Step 2: Create a sidecar metadata file with the changes (Fallback for obvious viewing)
         File sidecar = new File(destination.getAbsolutePath() + ".metadata.json");
         try (PrintWriter pw = new PrintWriter(new FileWriter(sidecar))) {
             pw.println("{");
