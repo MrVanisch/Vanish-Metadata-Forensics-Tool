@@ -22,9 +22,9 @@ Vanish is a powerful Java-based security utility designed to uncover hidden info
 - **Metadata Cleaning:** Securely remove metadata from images (JPEG, PNG, etc.) via re-encoding.
 - **Universal Metadata Editor (PRO):** Edit metadata of **any file type**. The tool reads all existing metadata, displays them as a numbered list, and lets you change any value you want.
   - **JPEG/PNG:** Changes are written directly into the file using EXIF/tEXt chunks.
-  - **Other formats (PDF, DOCX, MP4, etc.):** A sidecar `.metadata.json` file is generated alongside a copy of the original.
-- **Safety:** Always creates a new `_edited` file to preserve original evidence.
-- **Backup creation** for original files during cleaning.
+  - **Other formats (PDF, DOCX, MP4, etc.):** A sidecar `.metadata.json` file is generated alongside the target file.
+- **In-Place Editing:** Modifies the file seamlessly without cluttering your system with `_edited` copies, using auto-buffering for safety.
+- **Force Mode [F] Payload Injection:** Bypasses structural read-only restrictions to inject metadata via stealth text payload chunks (e.g. `tEXt`) — perfect for testing forensic tool blind spots.
 
 ### 4. 📊 Professional Reporting
 - **Console:** Interactive, color-coded dashboard with risk alerts and forensic mapping.
@@ -73,7 +73,7 @@ Vanish can edit metadata of **any file type**. Here's how:
 
 1.  **Launch the editor** — either via the menu (`[4] ✍️ Edit metadata`) or directly:
     ```bash
-    java -jar target/vanish-forensics-1.0.0.jar --edit myfile.jpg
+    java -jar target/vanish-forensics-1.0.0.jar --edit myfile.png
     ```
 2.  **Vanish reads all metadata** from the file and displays a numbered table:
     ```
@@ -81,15 +81,17 @@ Vanish can edit metadata of **any file type**. Here's how:
       │  #  │ Field                                │ Value                                │
       ├─────┼──────────────────────────────────────┼──────────────────────────────────────┤
       │ 1   │ Author                               │ John Doe                             │
-      │ 2   │ Copyright                            │ © 2025                               │
+      │ 2   │ 🔒Chroma ColorSpaceType              │ RGB                                  │
       │ 3   │ GPS Latitude                         │ 52.2297                              │
       │ ...                                                                               │
       └─────┴──────────────────────────────────────┴──────────────────────────────────────┘
+      Total: 28 fields (🔒 = read-only structural data, cannot be edited)
     ```
 3.  **Pick any field by its number** to change its value. Example: type `1` → enter new author name.
+    *   *Note: Fields with `🔒` are binary structural properties. To forcefully falsify them with a payload chunk, type `F` to enable **Force Mode**.*
 4.  **Add new fields** with `[A]` — type any custom field name and value.
 5.  **Review your changes** with `[L]` to see the full list + pending edits.
-6.  **Save** with `[S]` — Vanish creates a new `_edited` file preserving the original.
+6.  **Save** with `[S]` — Vanish safely applies your changes overwriting the original file.
 
 ## 🛠️ Technology Stack
 - **Core:** Java 17+
