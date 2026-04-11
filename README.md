@@ -20,8 +20,10 @@ Vanish is a powerful Java-based security utility designed to uncover hidden info
 
 ### 3. 🧹 Metadata Cleaning & Editing
 - **Metadata Cleaning:** Securely remove metadata from images (JPEG, PNG, etc.) via re-encoding.
-- **Metadata Editing (PRO):** Interactively modify EXIF/Text tags including **Artist, Description, Copyright, Software, Date, and GPS coordinates** in both **JPEG and PNG** files.
-- **Safety:** Always creates a new `_edited.jpg` or `_edited.png` file to preserve original evidence.
+- **Universal Metadata Editor (PRO):** Edit metadata of **any file type**. The tool reads all existing metadata, displays them as a numbered list, and lets you change any value you want.
+  - **JPEG/PNG:** Changes are written directly into the file using EXIF/tEXt chunks.
+  - **Other formats (PDF, DOCX, MP4, etc.):** A sidecar `.metadata.json` file is generated alongside a copy of the original.
+- **Safety:** Always creates a new `_edited` file to preserve original evidence.
 - **Backup creation** for original files during cleaning.
 
 ### 4. 📊 Professional Reporting
@@ -59,25 +61,35 @@ java -jar target/vanish-forensics-1.0.0.jar --file evidence.mp4 --html
 # Clean metadata
 java -jar target/vanish-forensics-1.0.0.jar --clean secret.jpg
 
-# Edit metadata (interactively for a specific file)
+# Edit metadata of ANY file (interactive)
 java -jar target/vanish-forensics-1.0.0.jar --edit photo.jpg
+java -jar target/vanish-forensics-1.0.0.jar --edit document.pdf
+java -jar target/vanish-forensics-1.0.0.jar --edit screenshot.png
 ```
 
 ## ✍️ How to Edit Metadata (Step-by-Step)
 
-Vanish allows you to professionally modify metadata for JPEG images to protect your privacy or for testing purposes:
+Vanish can edit metadata of **any file type**. Here's how:
 
-1.  **Launch the tool** and select option `[4] ✍️ Edit metadata (PRO)`.
-2.  **Provide the path** to your JPEG file (e.g., `evidence/photo.jpg`).
-3.  **Select fields to edit** by typing their ID (1-6):
-    *   `[1]` Artist (Author)
-    *   `[2]` Description (Image Title)
-    *   `[3]` Copyright
-    *   `[4]` Software (Encoder tool)
-    *   `[5]` Date (Formatted as `YYYY:MM:DD HH:MM:SS`)
-    *   `[6]` GPS Coordinates (Formatted as `Latitude, Longitude`)
-4.  **Save Changes**: Press `[S]` to apply all edits. Vanish will generate a new file named `photo_edited.jpg`.
-5.  **Analyze the new file**: Use Option `[1]` to verify that the new metadata is active.
+1.  **Launch the editor** — either via the menu (`[4] ✍️ Edit metadata`) or directly:
+    ```bash
+    java -jar target/vanish-forensics-1.0.0.jar --edit myfile.jpg
+    ```
+2.  **Vanish reads all metadata** from the file and displays a numbered table:
+    ```
+      ┌─────┬──────────────────────────────────────┬──────────────────────────────────────┐
+      │  #  │ Field                                │ Value                                │
+      ├─────┼──────────────────────────────────────┼──────────────────────────────────────┤
+      │ 1   │ Author                               │ John Doe                             │
+      │ 2   │ Copyright                            │ © 2025                               │
+      │ 3   │ GPS Latitude                         │ 52.2297                              │
+      │ ...                                                                               │
+      └─────┴──────────────────────────────────────┴──────────────────────────────────────┘
+    ```
+3.  **Pick any field by its number** to change its value. Example: type `1` → enter new author name.
+4.  **Add new fields** with `[A]` — type any custom field name and value.
+5.  **Review your changes** with `[L]` to see the full list + pending edits.
+6.  **Save** with `[S]` — Vanish creates a new `_edited` file preserving the original.
 
 ## 🛠️ Technology Stack
 - **Core:** Java 17+

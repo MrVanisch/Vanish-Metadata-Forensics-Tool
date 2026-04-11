@@ -5,10 +5,8 @@ import com.vanish.forensics.analyzer.FileForensicAnalyzer;
 import com.vanish.forensics.analyzer.SensitiveDataDetector;
 import com.vanish.forensics.cleaner.MetadataCleaner;
 import com.vanish.forensics.core.ExtractorFactory;
-import com.vanish.forensics.core.JpegMetadataEditor;
-import com.vanish.forensics.core.MetadataEditor;
-import com.vanish.forensics.core.MetadataEditorFactory;
 import com.vanish.forensics.core.MetadataExtractor;
+import com.vanish.forensics.core.UniversalMetadataEditor;
 import com.vanish.forensics.model.FileMetadata;
 import com.vanish.forensics.model.GpsCoordinates;
 import com.vanish.forensics.report.ConsoleReportGenerator;
@@ -30,7 +28,6 @@ public class ConsoleUI {
     private final FileForensicAnalyzer forensicAnalyzer;
     private final BatchAnalyzer batchAnalyzer;
     private final MetadataCleaner metadataCleaner;
-    private final MetadataEditor metadataEditor;
     private final ConsoleReportGenerator consoleReport;
 
     private String reportOutputDir = "./vanish_reports";
@@ -42,7 +39,6 @@ public class ConsoleUI {
         this.forensicAnalyzer = new FileForensicAnalyzer();
         this.batchAnalyzer = new BatchAnalyzer();
         this.metadataCleaner = new MetadataCleaner();
-        this.metadataEditor = null; // Will be selected via factory
         this.consoleReport = new ConsoleReportGenerator();
     }
 
@@ -261,7 +257,7 @@ public class ConsoleUI {
     private void editMetadata() {
         System.out.println();
         System.out.println(ConsoleColors.BOLD + "  ✍️ EDIT METADATA (PRO)" + ConsoleColors.RESET);
-        String path = readInput("Enter image path (JPEG only)");
+        String path = readInput("Enter file path");
         performEdit(path);
     }
 
@@ -272,39 +268,88 @@ public class ConsoleUI {
             return;
         }
 
-        MetadataEditor editor = MetadataEditorFactory.getEditor(file);
-        if (editor == null) {
-            System.out.println(ConsoleColors.RED + "  Error: Format not supported for editing." + ConsoleColors.RESET);
-            System.out.println(ConsoleColors.DIM + "  Currently supported: " + MetadataEditorFactory.getSupportedExtensions() + ConsoleColors.RESET);
+        UniversalMetadataEditor universalEditor = new UniversalMetadataEditor();
+
+        // Step 1: Read ALL metadata from the file
+        Map<String, String> existingMetadata;
+        try {
+            System.out.println(ConsoleColors.DIM + "  Reading metadata from: " + file.getName() + "..." + ConsoleColors.RESET);
+            existingMetadata = universalEditor.readAllMetadata(file);
+        } catch (Exception e) {
+            System.out.println(ConsoleColors.RED + "  Error reading metadata: " + e.getMessage() + ConsoleColors.RESET);
             return;
         }
 
+        if (existingMetadata.isEmpty()) {
+            System.out.println(ConsoleColors.YELLOW + "  No metadata found in this file." + ConsoleColors.RESET);
+            System.out.println(ConsoleColors.DIM + "  You can still add new metadata fields." + ConsoleColors.RESET);
+        }
+
+        // Step 2: Display all metadata as a numbered list
+        List<String> keys = new ArrayList<>(existingMetadata.keySet());
+        displayMetadataTable(keys, existingMetadata);
+
+        // Step 3: Interactive editing loop
         Map<String, String> changes = new HashMap<>();
         boolean editing = true;
 
         while (editing) {
             System.out.println();
-            System.out.println(ConsoleColors.CYAN + "  Fields to edit:" + ConsoleColors.RESET);
-            System.out.println("  [1] Artist/Author");
-            System.out.println("  [2] Title/Description");
-            System.out.println("  [3] Copyright");
-            System.out.println("  [4] Software");
-            System.out.println("  [5] Date (YYYY:MM:DD HH:MM:SS)");
-            System.out.println("  [6] GPS Coordinates (Lat, Long)");
-            System.out.println(ConsoleColors.GREEN + "  [S] Save Changes & Exit" + ConsoleColors.RESET);
-            System.out.println(ConsoleColors.RED + "  [C] Cancel" + ConsoleColors.RESET);
+            System.out.println(ConsoleColors.CYAN + "  Commands:" + ConsoleColors.RESET);
+            System.out.println("    " + ConsoleColors.GREEN + "[number]" + ConsoleColors.RESET + "  Edit field by number from the list above");
+            System.out.println("    " + ConsoleColors.GREEN + "[A]" + ConsoleColors.RESET + "       Add a new custom metadata field");
+            System.out.println("    " + ConsoleColors.GREEN + "[L]" + ConsoleColors.RESET + "       Show metadata list again");
+            System.out.println("    " + ConsoleColors.GREEN + "[S]" + ConsoleColors.RESET + "       Save all changes & create edited file");
+            System.out.println("    " + ConsoleColors.RED + "[C]" + ConsoleColors.RESET + "       Cancel");
 
-            String choice = readInput("Select field to edit").toUpperCase();
+            String choice = readInput("Action").trim().toUpperCase();
 
             switch (choice) {
-                case "1": changes.put("artist", readInput("Enter Artist name")); break;
-                case "2": changes.put("description", readInput("Enter Description")); break;
-                case "3": changes.put("copyright", readInput("Enter Copyright info")); break;
-                case "4": changes.put("software", readInput("Enter Software name")); break;
-                case "5": changes.put("date", readInput("Enter Date (YYYY:MM:DD HH:MM:SS)")); break;
-                case "6": changes.put("gps", readInput("Enter GPS (e.g. 52.2297, 21.0122)")); break;
-                case "S": editing = false; break;
-                case "C": return;
+                case "S":
+                    editing = false;
+                    break;
+                case "C":
+                    System.out.println(ConsoleColors.YELLOW + "  Cancelled. No changes saved." + ConsoleColors.RESET);
+                    return;
+                case "A":
+                    String newKey = readInput("Field name (e.g. Author, GPS, Comment)");
+                    if (!newKey.isEmpty()) {
+                        String newVal = readInput("Value for '" + newKey + "'");
+                        changes.put(newKey, newVal);
+                        System.out.println(ConsoleColors.GREEN + "  + Added: " + newKey + " = " + newVal + ConsoleColors.RESET);
+                    }
+                    break;
+                case "L":
+                    displayMetadataTable(keys, existingMetadata);
+                    if (!changes.isEmpty()) {
+                        System.out.println();
+                        System.out.println(ConsoleColors.YELLOW + "  Pending changes (" + changes.size() + "):" + ConsoleColors.RESET);
+                        for (Map.Entry<String, String> c : changes.entrySet()) {
+                            System.out.println("    " + ConsoleColors.GREEN + c.getKey() + ConsoleColors.RESET + " → " + c.getValue());
+                        }
+                    }
+                    break;
+                default:
+                    // Try to parse as a number
+                    try {
+                        int idx = Integer.parseInt(choice);
+                        if (idx >= 1 && idx <= keys.size()) {
+                            String selectedKey = keys.get(idx - 1);
+                            String oldValue = existingMetadata.get(selectedKey);
+                            System.out.println();
+                            System.out.println("  Field:    " + ConsoleColors.CYAN + selectedKey + ConsoleColors.RESET);
+                            System.out.println("  Current:  " + ConsoleColors.DIM + oldValue + ConsoleColors.RESET);
+                            String newValue = readInput("New value (or Enter to skip)");
+                            if (!newValue.isEmpty()) {
+                                changes.put(selectedKey, newValue);
+                                System.out.println(ConsoleColors.GREEN + "  ✓ Queued: " + selectedKey + " → " + newValue + ConsoleColors.RESET);
+                            }
+                        } else {
+                            System.out.println(ConsoleColors.RED + "  Invalid number. Use 1-" + keys.size() + ConsoleColors.RESET);
+                        }
+                    } catch (NumberFormatException e) {
+                        System.out.println(ConsoleColors.RED + "  Unknown command. Use a number, A, L, S, or C." + ConsoleColors.RESET);
+                    }
             }
         }
 
@@ -313,20 +358,57 @@ public class ConsoleUI {
             return;
         }
 
+        // Step 4: Apply changes
         try {
-            String ext = path.substring(path.lastIndexOf("."));
-            String outPath = path.substring(0, path.lastIndexOf(".")) + "_edited" + ext;
+            String ext = "";
+            int dotIdx = path.lastIndexOf(".");
+            if (dotIdx > 0) ext = path.substring(dotIdx);
+            String outPath = path.substring(0, dotIdx > 0 ? dotIdx : path.length()) + "_edited" + ext;
             File outFile = new File(outPath);
-            
-            System.out.println(ConsoleColors.DIM + "  Applying changes..." + ConsoleColors.RESET);
-            editor.updateMetadata(file, outFile, changes);
-            
+
+            System.out.println();
+            System.out.println(ConsoleColors.DIM + "  Applying " + changes.size() + " change(s)..." + ConsoleColors.RESET);
+            universalEditor.applyChanges(file, outFile, changes);
+
             System.out.println(ConsoleColors.GREEN + "  ✅ Metadata updated successfully!" + ConsoleColors.RESET);
-            System.out.println("  New file saved to: " + outPath);
+            System.out.println("  Output file: " + ConsoleColors.CYAN + outPath + ConsoleColors.RESET);
+
+            // Check if sidecar was created (for non-image formats)
+            File sidecar = new File(outPath + ".metadata.json");
+            if (sidecar.exists()) {
+                System.out.println("  Sidecar:   " + ConsoleColors.CYAN + sidecar.getName() + ConsoleColors.RESET);
+                System.out.println(ConsoleColors.DIM + "  (For this format, changes are stored in a sidecar JSON file)" + ConsoleColors.RESET);
+            }
         } catch (Exception e) {
             System.out.println(ConsoleColors.RED + "  Error during editing: " + e.getMessage() + ConsoleColors.RESET);
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Displays all metadata fields as a formatted, numbered table.
+     */
+    private void displayMetadataTable(List<String> keys, Map<String, String> metadata) {
+        System.out.println();
+        System.out.println(ConsoleColors.BOLD + "  ┌─────┬──────────────────────────────────────┬──────────────────────────────────────┐" + ConsoleColors.RESET);
+        System.out.println(ConsoleColors.BOLD + "  │  #  │ Field                                │ Value                                │" + ConsoleColors.RESET);
+        System.out.println(ConsoleColors.BOLD + "  ├─────┼──────────────────────────────────────┼──────────────────────────────────────┤" + ConsoleColors.RESET);
+        
+        for (int i = 0; i < keys.size(); i++) {
+            String key = keys.get(i);
+            String value = metadata.get(key);
+            
+            // Truncate for display
+            String displayKey = key.length() > 36 ? key.substring(0, 33) + "..." : key;
+            String displayVal = value.length() > 36 ? value.substring(0, 33) + "..." : value;
+            
+            System.out.printf("  │ %s%-3d%s │ %-36s │ %-36s │%n",
+                ConsoleColors.GREEN, (i + 1), ConsoleColors.RESET,
+                displayKey, displayVal);
+        }
+        
+        System.out.println(ConsoleColors.BOLD + "  └─────┴──────────────────────────────────────┴──────────────────────────────────────┘" + ConsoleColors.RESET);
+        System.out.println(ConsoleColors.DIM + "  Total: " + keys.size() + " metadata fields" + ConsoleColors.RESET);
     }
 
     private void cleanMetadata() {
