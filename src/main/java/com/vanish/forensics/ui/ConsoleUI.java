@@ -287,11 +287,13 @@ public class ConsoleUI {
 
         // Step 2: Display all metadata as a numbered list
         List<String> keys = new ArrayList<>(existingMetadata.keySet());
-        displayMetadataTable(keys, existingMetadata);
+        Set<String> readOnlyKeys = getReadOnlyKeys(keys);
+        displayMetadataTable(keys, existingMetadata, readOnlyKeys);
 
         // Step 3: Interactive editing loop
         Map<String, String> changes = new HashMap<>();
         boolean editing = true;
+        boolean forceMode = false;
 
         while (editing) {
             System.out.println();
@@ -299,6 +301,7 @@ public class ConsoleUI {
             System.out.println("    " + ConsoleColors.GREEN + "[number]" + ConsoleColors.RESET + "  Edit field by number from the list above");
             System.out.println("    " + ConsoleColors.GREEN + "[A]" + ConsoleColors.RESET + "       Add a new custom metadata field");
             System.out.println("    " + ConsoleColors.GREEN + "[L]" + ConsoleColors.RESET + "       Show metadata list again");
+            System.out.println("    " + ConsoleColors.YELLOW + "[F]" + ConsoleColors.RESET + "       Toggle Force Mode " + (forceMode ? "(ON)" : "(OFF)"));
             System.out.println("    " + ConsoleColors.GREEN + "[S]" + ConsoleColors.RESET + "       Save all changes & create edited file");
             System.out.println("    " + ConsoleColors.RED + "[C]" + ConsoleColors.RESET + "       Cancel");
 
@@ -311,8 +314,12 @@ public class ConsoleUI {
                 case "C":
                     System.out.println(ConsoleColors.YELLOW + "  Cancelled. No changes saved." + ConsoleColors.RESET);
                     return;
+                case "F":
+                    forceMode = !forceMode;
+                    System.out.println(ConsoleColors.YELLOW + "  Force Mode is now " + (forceMode ? "ON. You can edit structural data (WARNING: may corrupt file or be appended as a fake tag)." : "OFF.") + ConsoleColors.RESET);
+                    break;
                 case "A":
-                    String newKey = readInput("Field name (e.g. Author, GPS, Comment)");
+                    String newKey = readInput("Field name (e.g. Author, Title, Comment, Copyright)");
                     if (!newKey.isEmpty()) {
                         String newVal = readInput("Value for '" + newKey + "'");
                         changes.put(newKey, newVal);
@@ -320,7 +327,7 @@ public class ConsoleUI {
                     }
                     break;
                 case "L":
-                    displayMetadataTable(keys, existingMetadata);
+                    displayMetadataTable(keys, existingMetadata, readOnlyKeys);
                     if (!changes.isEmpty()) {
                         System.out.println();
                         System.out.println(ConsoleColors.YELLOW + "  Pending changes (" + changes.size() + "):" + ConsoleColors.RESET);
@@ -336,6 +343,17 @@ public class ConsoleUI {
                         if (idx >= 1 && idx <= keys.size()) {
                             String selectedKey = keys.get(idx - 1);
                             String oldValue = existingMetadata.get(selectedKey);
+
+                            // Check if read-only
+                            if (readOnlyKeys.contains(selectedKey) && !forceMode) {
+                                System.out.println(ConsoleColors.RED + "  ⚠ Field '" + selectedKey + "' is READ-ONLY (structural data)." + ConsoleColors.RESET);
+                                System.out.println(ConsoleColors.DIM + "  This value is encoded in the file's binary structure and cannot be overwritten." + ConsoleColors.RESET);
+                                System.out.println(ConsoleColors.DIM + "  Use [F] to enable Force Mode if you really want to try bypassing this." + ConsoleColors.RESET);
+                                break;
+                            } else if (readOnlyKeys.contains(selectedKey) && forceMode) {
+                                System.out.println(ConsoleColors.YELLOW + "  ⚠ Forcing edit on structural field '" + selectedKey + "'." + ConsoleColors.RESET);
+                            }
+
                             System.out.println();
                             System.out.println("  Field:    " + ConsoleColors.CYAN + selectedKey + ConsoleColors.RESET);
                             System.out.println("  Current:  " + ConsoleColors.DIM + oldValue + ConsoleColors.RESET);
@@ -348,7 +366,7 @@ public class ConsoleUI {
                             System.out.println(ConsoleColors.RED + "  Invalid number. Use 1-" + keys.size() + ConsoleColors.RESET);
                         }
                     } catch (NumberFormatException e) {
-                        System.out.println(ConsoleColors.RED + "  Unknown command. Use a number, A, L, S, or C." + ConsoleColors.RESET);
+                        System.out.println(ConsoleColors.RED + "  Unknown command. Use a number, A, L, F, S, or C." + ConsoleColors.RESET);
                     }
             }
         }
@@ -373,11 +391,42 @@ public class ConsoleUI {
             System.out.println(ConsoleColors.GREEN + "  ✅ Metadata updated successfully!" + ConsoleColors.RESET);
             System.out.println("  Output file: " + ConsoleColors.CYAN + outPath + ConsoleColors.RESET);
 
-            // Check if sidecar was created (for non-image formats)
+            // Step 5: Verification — re-read edited file and confirm changes
             File sidecar = new File(outPath + ".metadata.json");
             if (sidecar.exists()) {
                 System.out.println("  Sidecar:   " + ConsoleColors.CYAN + sidecar.getName() + ConsoleColors.RESET);
                 System.out.println(ConsoleColors.DIM + "  (For this format, changes are stored in a sidecar JSON file)" + ConsoleColors.RESET);
+            } else {
+                System.out.println();
+                System.out.println(ConsoleColors.DIM + "  Verifying changes in output file..." + ConsoleColors.RESET);
+                try {
+                    Map<String, String> newMetadata = universalEditor.readAllMetadata(outFile);
+                    int verified = 0;
+                    int notFound = 0;
+                    for (Map.Entry<String, String> change : changes.entrySet()) {
+                        // Search for the value in the new metadata
+                        boolean found = false;
+                        for (String val : newMetadata.values()) {
+                            if (val.contains(change.getValue())) {
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (found) {
+                            verified++;
+                        } else {
+                            notFound++;
+                        }
+                    }
+                    if (verified > 0) {
+                        System.out.println(ConsoleColors.GREEN + "  ✓ Verified: " + verified + " change(s) confirmed in the output file." + ConsoleColors.RESET);
+                    }
+                    if (notFound > 0) {
+                        System.out.println(ConsoleColors.YELLOW + "  ⚠ " + notFound + " change(s) could not be verified (structural fields are read-only)." + ConsoleColors.RESET);
+                    }
+                } catch (Exception ve) {
+                    System.out.println(ConsoleColors.DIM + "  (Verification skipped)" + ConsoleColors.RESET);
+                }
             }
         } catch (Exception e) {
             System.out.println(ConsoleColors.RED + "  Error during editing: " + e.getMessage() + ConsoleColors.RESET);
@@ -386,9 +435,33 @@ public class ConsoleUI {
     }
 
     /**
-     * Displays all metadata fields as a formatted, numbered table.
+     * Identifies metadata keys that are structural/read-only and cannot be edited.
+     * These are properties encoded in binary chunks (dimensions, compression, color space, etc.)
      */
-    private void displayMetadataTable(List<String> keys, Map<String, String> metadata) {
+    private Set<String> getReadOnlyKeys(List<String> keys) {
+        Set<String> readOnly = new HashSet<>();
+        for (String key : keys) {
+            String lower = key.toLowerCase();
+            if (lower.startsWith("chroma ") || lower.startsWith("compression ") ||
+                lower.startsWith("data ") || lower.startsWith("dimension ") ||
+                lower.startsWith("transparency ") || lower.startsWith("x-tika:") ||
+                lower.equals("content-type") || lower.equals("width") || lower.equals("height") ||
+                lower.startsWith("tiff:") || lower.startsWith("ihdr") ||
+                lower.startsWith("gama") || lower.startsWith("phys") || lower.startsWith("srgb") ||
+                lower.startsWith("imagereader:") ||
+                lower.startsWith("pdf:") || lower.contains("numimages") ||
+                lower.equals("content-length")) {
+                readOnly.add(key);
+            }
+        }
+        return readOnly;
+    }
+
+    /**
+     * Displays all metadata fields as a formatted, numbered table.
+     * Read-only fields are marked with a lock icon.
+     */
+    private void displayMetadataTable(List<String> keys, Map<String, String> metadata, Set<String> readOnlyKeys) {
         System.out.println();
         System.out.println(ConsoleColors.BOLD + "  ┌─────┬──────────────────────────────────────┬──────────────────────────────────────┐" + ConsoleColors.RESET);
         System.out.println(ConsoleColors.BOLD + "  │  #  │ Field                                │ Value                                │" + ConsoleColors.RESET);
@@ -397,18 +470,26 @@ public class ConsoleUI {
         for (int i = 0; i < keys.size(); i++) {
             String key = keys.get(i);
             String value = metadata.get(key);
+            boolean isReadOnly = readOnlyKeys.contains(key);
             
             // Truncate for display
-            String displayKey = key.length() > 36 ? key.substring(0, 33) + "..." : key;
+            String displayKey = key.length() > 34 ? key.substring(0, 31) + "..." : key;
             String displayVal = value.length() > 36 ? value.substring(0, 33) + "..." : value;
             
-            System.out.printf("  │ %s%-3d%s │ %-36s │ %-36s │%n",
+            // Add lock icon for read-only fields
+            String prefix = isReadOnly ? "🔒" : "  ";
+            String keyColor = isReadOnly ? ConsoleColors.DIM : "";
+            String keyReset = isReadOnly ? ConsoleColors.RESET : "";
+            
+            System.out.printf("  │ %s%-3d%s │ %s%s%-34s%s │ %-36s │%n",
                 ConsoleColors.GREEN, (i + 1), ConsoleColors.RESET,
-                displayKey, displayVal);
+                prefix, keyColor, displayKey, keyReset,
+                displayVal);
         }
         
         System.out.println(ConsoleColors.BOLD + "  └─────┴──────────────────────────────────────┴──────────────────────────────────────┘" + ConsoleColors.RESET);
-        System.out.println(ConsoleColors.DIM + "  Total: " + keys.size() + " metadata fields" + ConsoleColors.RESET);
+        System.out.println(ConsoleColors.DIM + "  Total: " + keys.size() + " fields (🔒 = read-only structural data, cannot be edited)" + ConsoleColors.RESET);
+        System.out.println(ConsoleColors.DIM + "  Tip: Use [A] to add new writable fields like Author, Title, Copyright, Comment" + ConsoleColors.RESET);
     }
 
     private void cleanMetadata() {
