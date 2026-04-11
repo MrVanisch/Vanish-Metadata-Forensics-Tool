@@ -378,29 +378,33 @@ public class ConsoleUI {
 
         // Step 4: Apply changes
         try {
-            String ext = "";
-            int dotIdx = path.lastIndexOf(".");
-            if (dotIdx > 0) ext = path.substring(dotIdx);
-            String outPath = path.substring(0, dotIdx > 0 ? dotIdx : path.length()) + "_edited" + ext;
-            File outFile = new File(outPath);
+            // Save to a temporary file first, to avoid truncating while reading
+            String tempPath = path + ".tmp";
+            File tempFile = new File(tempPath);
 
             System.out.println();
             System.out.println(ConsoleColors.DIM + "  Applying " + changes.size() + " change(s)..." + ConsoleColors.RESET);
-            universalEditor.applyChanges(file, outFile, changes);
+            universalEditor.applyChanges(file, tempFile, changes);
 
-            System.out.println(ConsoleColors.GREEN + "  ✅ Metadata updated successfully!" + ConsoleColors.RESET);
-            System.out.println("  Output file: " + ConsoleColors.CYAN + outPath + ConsoleColors.RESET);
+            // Safely overwrite the original file
+            java.nio.file.Files.move(tempFile.toPath(), file.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+
+            System.out.println(ConsoleColors.GREEN + "  ✅ Metadata updated successfully! (File overwritten)" + ConsoleColors.RESET);
+            System.out.println("  Output file: " + ConsoleColors.CYAN + file.getAbsolutePath() + ConsoleColors.RESET);
 
             // Step 5: Verification — re-read edited file and confirm changes
-            File sidecar = new File(outPath + ".metadata.json");
-            if (sidecar.exists()) {
-                System.out.println("  Sidecar:   " + ConsoleColors.CYAN + sidecar.getName() + ConsoleColors.RESET);
+            File tempSidecar = new File(tempPath + ".metadata.json");
+            File finalSidecar = new File(file.getAbsolutePath() + ".metadata.json");
+            
+            if (tempSidecar.exists()) {
+                java.nio.file.Files.move(tempSidecar.toPath(), finalSidecar.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                System.out.println("  Sidecar:   " + ConsoleColors.CYAN + finalSidecar.getName() + ConsoleColors.RESET);
                 System.out.println(ConsoleColors.DIM + "  (For this format, changes are stored in a sidecar JSON file)" + ConsoleColors.RESET);
             } else {
                 System.out.println();
                 System.out.println(ConsoleColors.DIM + "  Verifying changes in output file..." + ConsoleColors.RESET);
                 try {
-                    Map<String, String> newMetadata = universalEditor.readAllMetadata(outFile);
+                    Map<String, String> newMetadata = universalEditor.readAllMetadata(file);
                     int verified = 0;
                     int notFound = 0;
                     for (Map.Entry<String, String> change : changes.entrySet()) {
