@@ -26,21 +26,82 @@ public class ExtractorFactory {
      */
     public MetadataExtractor getExtractor(File file) throws IOException {
         String mimeType = detectMimeType(file);
+        MetadataExtractor baseExtractor;
 
         if (imageExtractor.supports(mimeType)) {
-            return imageExtractor;
+            baseExtractor = imageExtractor;
+        } else if (documentExtractor.supports(mimeType)) {
+            baseExtractor = documentExtractor;
+        } else if (mimeType.startsWith("video/") || mimeType.startsWith("audio/")) {
+            baseExtractor = mediaExtractor;
+        } else {
+            // Fallback: use document extractor (Tika handles many formats)
+            baseExtractor = documentExtractor;
         }
 
-        if (documentExtractor.supports(mimeType)) {
-            return documentExtractor;
-        }
+        return new MetadataExtractor() {
+            @Override
+            public com.vanish.forensics.model.FileMetadata extract(File file) throws IOException {
+                com.vanish.forensics.model.FileMetadata result = baseExtractor.extract(file);
+                
+                // Scan for Vanish Stealth Payload at the end of the file
+                try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(file, "r")) {
+                    long length = raf.length();
+                    if (length > 20) {
+                        long start = Math.max(0, length - 10240);
+                        raf.seek(start);
+                        byte[] bytes = new byte[(int) (length - start)];
+                        raf.readFully(bytes);
+                        String tail = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+                        int markerIdx = tail.lastIndexOf("VANISH_META:");
+                        if (markerIdx != -1) {
+                            String json = tail.substring(markerIdx + 12).trim();
+                            if (json.endsWith("}")) {
+                                try {
+                                    java.util.Map<String, String> stealthMap = new com.google.gson.Gson().fromJson(
+                                        json, new com.google.gson.reflect.TypeToken<java.util.Map<String, String>>(){}.getType());
+                                    if (stealthMap != null) {
+                                        for (java.util.Map.Entry<String, String> entry : stealthMap.entrySet()) {
+                                            String k = entry.getKey();
+                                            String v = entry.getValue();
+                                            result.addRawMetadata(k, v);
+                                            
+                                            // Ensure structural fields are mapped dynamically for UI consistency
+                                            String kl = k.toLowerCase();
+                                            if (result.hasMediaData()) {
+                                                com.vanish.forensics.model.MediaData md = result.getMediaData();
+                                                if (kl.contains("date") || kl.contains("created")) md.setDate(v);
+                                                if (kl.contains("title")) md.setTitle(v);
+                                                if (kl.contains("artist") || kl.contains("author")) md.setArtist(v);
+                                            }
+                                            if (result.hasDocumentData()) {
+                                                com.vanish.forensics.model.DocumentData dd = result.getDocumentData();
+                                                if (kl.contains("date") || kl.contains("created")) dd.setCreationDate(v);
+                                                if (kl.contains("title")) dd.setTitle(v);
+                                                if (kl.contains("author")) dd.setAuthor(v);
+                                                if (kl.contains("company")) dd.setCompany(v);
+                                            }
+                                        }
+                                    }
+                                } catch (Exception ignored) {}
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {}
+                
+                return result;
+            }
 
-        if (mimeType.startsWith("video/") || mimeType.startsWith("audio/")) {
-            return mediaExtractor;
-        }
+            @Override
+            public boolean supports(String mimeType) {
+                return baseExtractor.supports(mimeType);
+            }
 
-        // Fallback: use document extractor (Tika handles many formats)
-        return documentExtractor;
+            @Override
+            public String getName() {
+                return baseExtractor.getName() + " (with Stealth Payload Support)";
+            }
+        };
     }
 
     /**
